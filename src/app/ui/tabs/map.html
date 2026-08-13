@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+    <head>
+		<!-- Auto refresh every 15 min (only for bitcraftmap version) -->
+		<meta http-equiv="refresh" content="900">
+		<style>
+			/* Remove default margins, paddings, and scrollbars from the main window */
+			html, body {
+				margin: 0;
+				padding: 0;
+				width: 100%;
+				height: 100%;
+				overflow: hidden; /* Prevents double scrollbars */
+			}
+
+			/* Force the iframe to fill the viewport seamlessly */
+			iframe {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100vw;
+				height: 100vh;
+				border: none;
+				display: block; /* Removes any extra bottom gap/whitespace */
+			}
+    	</style>
+	</head>
+	<body>
+		<!--src='https://maps.trinit.is?minimap=0&controls=0&data="focus":{"x":6400,"y":6400,"zoom":6}'-->
+		<!--src='https://bitcraftmap.com/?gistId=45e77efd77b455020add8581eaaf6dc3'-->
+		<iframe
+		src='https://bitcraftmap.com/?gistId=45e77efd77b455020add8581eaaf6dc3'
+		width="600"
+		height="400"
+		frameborder="0"
+		></iframe>
+    </body>
+</html>

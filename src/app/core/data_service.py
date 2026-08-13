@@ -1,0 +1,237 @@
+import asyncio
+import json
+import logging
+import numpy as np
+
+# import queue
+# import threading
+import time
+import websockets
+
+from PySide6.QtCore import QThread, Signal, QObject
+
+# Temporary import?
+from .models import pricing
+
+
+class DataService:
+    """
+    Manages the connection to the game client, handles data subscriptions,
+    and passes data to the GUI via a thread-safe queue.
+
+    Refactored to use MessageRouter and focused data processors while
+    preserving the exact same interface and subscription patterns.
+    """
+
+    def __init__(self, app):
+        self.app = app
+        app.workers = []
+
+        # "*_desc" tables are relatively static and accessible on the global database
+        desc_tables = [
+            "cargo",
+            "crafting_recipe",
+            "item",
+            # "item_list",
+        ]
+        for table in desc_tables:
+            self.start_worker(0, f"{table}_desc")
+            ...
+
+        # "*_state" tables can be static or not, but importantly, they're region-specific
+        state_tables = [
+            "buy_order",
+            "sell_order",
+        ]
+        active_regions = [
+            3,
+            7,
+            8,
+            9,
+            11,
+            12,
+            13,
+            14,
+            15,
+            17,
+            18,
+            19,
+            23,
+        ]
+        for table in state_tables:
+            for region in active_regions:
+                self.start_worker(region, f"{table}_state")
+
+    def start_worker(self, region, table):
+        port = 3000 + region
+        host = f"wss://relay.bitcraftsync.app:{port}"
+        if region == 0:
+            db = "bitcraft-live-global"
+        else:
+            db = f"bitcraft-live-{region}"
+        uri = f"{host}/v1/database/{db}/subscribe?compression=None"
+
+        channel_name = f"R{region}-{table}"
+        queries = [f"SELECT * FROM {table}"]
+
+        worker = WebSocketWorker(uri, channel_name, queries)
+        # worker.signals.message_received.connect(self.update_ui)
+        worker.signals.message_received.connect(self.update_tables)
+        worker.start()
+        self.app.workers.append(worker)
+
+    def update_tables(self, channel_name, message):
+        try:
+            message = json.loads(message)
+            if "IdentityToken" in message:
+                logging.info(f"Performed initial handshake with {channel_name}")
+            elif "InitialSubscription" in message:
+                logging.info(f"Received initial data from {channel_name}")
+
+                # Desc tables necessary for initializing the product and crafting rosters
+                rost_init = ["cargo_desc", "crafting_recipe_desc", "item_desc"]
+                init_check = False  # This variable makes sure we don't re-initialize every time a new irrelevant table comes in
+
+                # Bulk import the entire response to the local copy of the tables...
+                msg_content = message["InitialSubscription"]
+                msg_update = msg_content.get("database_update", {})
+                msg_tables = msg_update.get("tables", [])
+                for entry in msg_tables:
+                    table_name = entry.get("table_name")
+                    if table_name in rost_init:
+                        init_check = True
+                    inserts = entry.get("updates", [{}])[0].get("inserts", [])
+                    if table_name not in self.app.tables:
+                        self.app.tables[table_name] = []
+
+                    # Inserts table is still a string at this point, desipte the json.loads(message) at the top of the function
+                    for i in range(0, len(inserts)):
+                        inserts[i] = json.loads(inserts[i])
+                    self.app.tables[table_name] += inserts
+
+                # Once this is triggered, intialize the "static" keys for the product lookup and crafting lookup
+                if all(k in self.app.tables for k in rost_init) and init_check:
+                    self.app.initialize_roster()
+
+                # # Attempt a price refresh
+                # self.refresh_all_prices()
+            elif "TransactionUpdate" in message:
+                logging.debug(f"Received updated data from {channel_name}")
+            else:
+                logging.warning(f"Unexpected message from {channel_name}: {message}")
+        except:
+            logging.error(message)
+
+    def refresh_all_prices(self):
+        if not hasattr(self.app, "product_rost"):
+            logging.debug(
+                f"Full price refresh was called before product roster was established"
+            )
+            return
+        if not all(
+            k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
+        ):
+            logging.debug(
+                f"{product_id} price refresh was called before market orders were available"
+            )
+            return
+
+        logging.info("Performing full price refresh")
+        for product_id in self.app.product_rost:
+            orders = pricing.price_calc(app=self.app, product_id=product_id, claim_id=0)
+            P_e = orders["P_e"]
+
+            ratio = self.app.product_rost.get(product_id, {}).get("Pack Size", 1)
+            pack_price = np.round(ratio * P_e, 1)
+            self.app.product_rost[product_id]["Pack Price"] = float(pack_price)
+            sig_figs = int(np.floor(np.log10(ratio)) + 1)
+            unit_price = np.round(P_e, sig_figs)
+            self.app.product_rost[product_id]["Unit Price"] = float(unit_price)
+        getattr(self.app.tabs, "🪙 Prices").model.update_table(self.app.product_rost)
+
+    def refresh_price(self, product_id):
+        """Updating the table is a costly process, so this is only intended for updates, not iterating through initial subscription"""
+        if not all(
+            k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
+        ):
+            logging.debug(
+                f"{product_id} price refresh was called before market orders were available"
+            )
+            return
+
+        # orders = pricing.price_calc(app=self.app,product_id=product_id,claim_id=0)
+        # P_e = orders["P_e"]
+        # P_e = 3.141592654
+        # ratio = self.app.product_rost.get(product_id,{}).get("Pack Size",1)
+        # pack_price = np.round(ratio*P_e,1)
+        # self.app.product_rost[product_id]["Pack Price"] = pack_price
+
+        # getattr(self.app.tabs,"🪙 Prices").model.update_table(self.app.product_rost)
+        # logging.info(orders)
+
+
+class WebSocketSignals(QObject):
+    message_received = Signal(str, str)  # (channel_name, message_content)
+
+
+class WebSocketWorker(QThread):
+    def __init__(self, uri, channel_name, queries):
+        super().__init__()
+        self.uri = uri
+        self.channel_name = channel_name
+        self.queries = queries
+        self.signals = WebSocketSignals()
+        self.loop = None
+        self.running = False
+
+    def run(self):
+        self.running = True
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_until_complete(self.connect_and_subscribe())
+
+    async def connect_and_subscribe(self):
+        try:
+            proto = "v1.json.spacetimedb"
+            payload = {
+                "Subscribe": {
+                    "request_id": 1,
+                    "query_strings": self.queries,
+                }
+            }
+            async with websockets.connect(
+                uri=self.uri, subprotocols=[proto], max_size=None, open_timeout=None
+            ) as websocket:
+                await websocket.send(json.dumps(payload))
+                while self.running:
+                    try:
+                        # Wait for message
+                        message = await asyncio.wait_for(websocket.recv(), timeout=120)
+                        self.signals.message_received.emit(self.channel_name, message)
+                    except asyncio.TimeoutError:
+                        continue
+                    except websockets.ConnectionClosed:
+                        logging.warning(f"{self.channel_name} connection closed")
+                        break
+        except OSError as e:
+            logging.error(f"OS Error in subscription {self.channel_name}: {e}")
+            if e.winerror == 121:
+                logging.info(
+                    f"Semaphore timeoute detected on {self.channel_name}, retrying connection"
+                )
+                await self.connect_and_subscribe()
+        except Exception as e:
+            logging.error(f"Fault in subscription {self.channel_name}: {e}")
+            self.signals.message_received.emit(self.channel_name, f"Error: {str(e)}")
+
+    def stop(self):
+        try:
+            logging.info(f"Closing {self.channel_name} connection")
+        except:
+            logging.warning("Closing unnamed connetion")
+        self.running = False
+        if self.loop:
+            for task in asyncio.all_tasks(self.loop):
+                task.cancel()
+            self.loop.stop()
+        self.wait()
