@@ -3,7 +3,7 @@ This tool uses a [public mirror](https://relay.bitcraftsync.app/) of BitCraft On
 
 ## Features
 ### Prices
-The tool opens by default on a live-updating roster of all products in-game. [Prices are estimated](#####whats-the-deal-with-the-prices) based on current buy orders and sell orders on the market, and displayed in a sortable table. You can double-click on a row to get a window popup of that product, providing more detail on the item itself and the market conditions for that item.
+The tool opens by default on a live-updating roster of all products in-game. Prices are estimated based on current buy orders and sell orders on the market, and displayed in a sortable table. You can double-click on a row to get a window popup of that product, providing more detail on the item itself and the market conditions for that item.
 
 ### Crafting: WIP
 In the future, this tool will look at the price in the roster, and calculates what crafting opportunities are profitable.
@@ -16,7 +16,7 @@ This tool displays shipping opportunities and profitable trade routes in a graph
 
 Eventually, I plan to have a live map, drawing on the same data as the other tools. However, for the time being, it instead uses [this public map](https://bitcraftmap.com/?gistId=45e77efd77b455020add8581eaaf6dc3) that updates roughly hourly, drawing on data from the [BitJita](https://bitjita.com/) API.  
 
-Lines are drawn on the map between claims where a profitable trade could be made. The yellow half of the line is on the exporter end, the blue half of the line is on the importer end. Travel to a claim with many yellow lines emanating from it if you want a [shipping](###shipping) starting point with many profitable opportunities. Line opacity is based on the profit per distance of the route. Any route with a profit per distance that's less than 10% of the best opportunity currently available isn't drawn. Click on a line to see the particular goods that make up that opportunity.
+Lines are drawn on the map between claims where a profitable trade could be made. The yellow half of the line is on the exporter end, the blue half of the line is on the importer end. Travel to a claim with many yellow lines emanating from it if you want a Shipping starting point with many profitable opportunities. Line opacity is based on the profit per distance of the route. Any route with a profit per distance that's less than 10% of the best opportunity currently available isn't drawn. Click on a line to see the particular goods that make up that opportunity.
 
 ## FAQ
 ##### What's the deal with the prices?
