@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 
 from PySide6.QtCore import QAbstractTableModel, QSortFilterProxyModel, Qt
 from PySide6.QtWidgets import (
@@ -60,7 +61,7 @@ class PricingTab(QWidget):
         for key in headers:
             default_data["Filler"][key] = "Loading..."
 
-        self.model = PriceTableModel(headers, default_data)
+        self.model = PriceTableModel(self.app, headers, default_data)
 
         self.proxy_model = PriceFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -100,8 +101,9 @@ class PriceFilterProxyModel(QSortFilterProxyModel):
 
 
 class PriceTableModel(QAbstractTableModel):
-    def __init__(self, headers, data):
+    def __init__(self, app, headers, data):
         super().__init__()
+        self.app = app
         self._headers = headers
         list_data = []
         for product_id in data:
@@ -124,10 +126,24 @@ class PriceTableModel(QAbstractTableModel):
         list_data = []
         for product_id in new_data:
             entry = new_data[product_id]
+
+            P_e = self.app.market["global"].get(product_id,{}).get("price")
+            if P_e is not None:
+                ratio = self.app.product_rost.get(product_id,{}).get("Pack Size",1)
+                sig_figs = int(np.floor(np.log10(ratio)) + 1)
+                pack_price = float(np.round(ratio * P_e, 1))
+                unit_price = float(np.round(P_e, sig_figs))
+            else:
+                pack_price = "Loading..."
+                unit_price = "Loading..."
             entry_list = []
             for key in self._headers:
                 if key == "Product ID":
                     entry_list.append(product_id)
+                elif key == "Pack Price":
+                    entry_list.append(pack_price)
+                elif key == "Unit Price":
+                    entry_list.append(unit_price)
                 else:
                     entry_list.append(entry.get(key, "Loading..."))
             list_data.append(entry_list)

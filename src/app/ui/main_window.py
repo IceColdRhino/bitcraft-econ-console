@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
 
         # self.app = MainApplication()
         self._load_settings()
+        self._load_old_market()
         self.tables = {}
 
         # Display information
@@ -57,7 +58,8 @@ class MainWindow(QMainWindow):
         logging.info(
             f"Waiting {int(delay_time_ms / 1000)} s to perform full price refresh"
         )
-        QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
+        #QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
+        QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices_test)
 
     def _load_settings(self):
         """Load settings, with fallback default values"""
@@ -92,6 +94,32 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logging.error(f"Error reading player_data.json: {e}, using defaults")
         self.settings = default_settings
+
+    def _load_old_market(self):
+        default_market = {
+            "global": {},
+            "claim": {"claim_id": 0},
+        }
+        try:
+            file_path = get_user_data_path("market.json")
+            with open(file_path, "r") as f:
+                saved_market = json.load(f)
+
+            # Deep merge: update defaults with saved market
+            for scope, details in saved_market.items():
+                if scope in default_market and isinstance(scope, dict):
+                    default_market[scope].update(details)
+                else:
+                    default_market[scope] = details
+
+            logging.debug("Loaded market from previous session")
+        except FileNotFoundError:
+            logging.info("No market.json found, calculating market from scratch")
+        except json.JSONDecodeError:
+            logging.warning("market.json is malformed, calculating market from scratch")
+        except Exception as e:
+            logging.error(f"Error reading market.json: {e}, calculating market from scratch")
+        self.market = default_market
 
     def initialize_roster(self):
         logging.info("Initializing product roster")
