@@ -63,6 +63,9 @@ class MainWindow(QMainWindow):
     def _load_settings(self):
         """Load settings, with fallback default values"""
         default_settings = {
+            "price": {
+                "scope": "global",
+            },
             "debug": {
                 "logging_level": "DEBUG",
             },
@@ -83,7 +86,6 @@ class MainWindow(QMainWindow):
                         default_settings[category].update(options)
                     else:
                         default_settings[category] = options
-
             logging.debug("Settings loaded from player_data.json")
 
         except FileNotFoundError:

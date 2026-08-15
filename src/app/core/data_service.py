@@ -39,6 +39,7 @@ class DataService:
         # "*_state" tables can be static or not, but importantly, they're region-specific
         state_tables = [
             "buy_order",
+            "claim",
             "sell_order",
         ]
         active_regions = [

@@ -5,9 +5,12 @@ import toml
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QComboBox,
     QFrame,
+    QHBoxLayout,
     QLabel,
+    QRadioButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -60,6 +63,7 @@ class SettingsTab(QScrollArea):
         # Price Section
         price_content = self._create_card_section(self, "Price Settings")
         self.vbox.addWidget(price_content)
+        self._create_price_section(price_content)
 
         # Crafting Section
         crafting_content = self._create_card_section(self, "Crafting Settings")
@@ -118,6 +122,65 @@ class SettingsTab(QScrollArea):
         self.card_frames.append(card_frame)
 
         return card_frame
+
+    def _create_price_section(self, parent):
+        """Create the price section."""
+
+        # Scope subsection
+        # (Whether estimates use global prices, or a specific claim)
+        scope_section = QWidget(parent)
+        scope_layout = QHBoxLayout(scope_section)
+        scope_label = QLabel(
+            parent=scope_section,
+            text="Choose scope of price estimates: ")
+        scope_label.setStyleSheet(
+            f"font-size: 12px; color: {get_color('TEXT_PRIMARY')};"
+        )
+        scope_layout.addWidget(scope_label)
+        button_style = f"""
+        QRadioButton {{
+            font-size: 12px;
+            color: {get_color("TEXT_PRIMARY")};
+        }}
+        
+        QRadioButton::indicator {{
+            width: 16px;
+            height: 16px;
+            border-radius: 9px;
+            border: 2px solid {get_color("BORDER_DEFAULT")};
+        }}
+
+        QRadioButton::indicator:checked {{
+            background-color: {get_color("BUTTON_ACTIVE")};
+            border: 2px solid {get_color("BORDER_FOCUS")};
+        }}
+        """
+        button_group = QButtonGroup(scope_section)
+        global_button = QRadioButton("Global")
+        global_button.setStyleSheet(button_style)
+        claim_button = QRadioButton("Claim-specific")
+        claim_button.setStyleSheet(button_style)
+        if self.app.settings.get("price",{}).get("scope") == "claim":
+            global_button.setChecked(False)
+            claim_button.setChecked(True)
+        else:
+            claim_button.setChecked(False)
+            global_button.setChecked(True)
+        button_group.addButton(global_button)
+        button_group.addButton(claim_button)
+        global_button.toggled.connect(self.on_scope_change)
+        scope_layout.addWidget(global_button)
+        scope_layout.addWidget(claim_button)
+        parent.layout().addWidget(scope_section)
+
+    def on_scope_change(self,global_scope):
+        """Detect change in the "global scope" button specifically"""
+        if global_scope:
+            self.app.settings["price"]["scope"] = "global"
+        else:
+            self.app.settings["price"]["scope"] = "claim"
+        logging.info(f"Price estimates set to {self.app.settings['price']['scope']} scope")
+        self._save_settings()
 
     def _create_debug_section(self, parent):
         """Create the debug section."""
