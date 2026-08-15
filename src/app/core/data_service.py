@@ -39,7 +39,6 @@ class DataService:
         # "*_state" tables can be static or not, but importantly, they're region-specific
         state_tables = [
             "buy_order",
-            "claim",
             "sell_order",
         ]
         active_regions = [
@@ -60,6 +59,8 @@ class DataService:
         for table in state_tables:
             for region in active_regions:
                 self.start_worker(region, f"{table}_state")
+        # There are a *few* state tables accessible from the global server
+        self.start_worker(0, f"claim_state")
 
     def start_worker(self, region, table):
         port = 3000 + region
@@ -90,6 +91,7 @@ class DataService:
                 # Desc tables necessary for initializing the product and crafting rosters
                 rost_init = ["cargo_desc", "crafting_recipe_desc", "item_desc"]
                 init_check = False  # This variable makes sure we don't re-initialize every time a new irrelevant table comes in
+                claim_check = False
 
                 # Bulk import the entire response to the local copy of the tables...
                 msg_content = message["InitialSubscription"]
@@ -99,6 +101,8 @@ class DataService:
                     table_name = entry.get("table_name")
                     if table_name in rost_init:
                         init_check = True
+                    if table_name == "claim_state":
+                        claim_check = True
                     inserts = entry.get("updates", [{}])[0].get("inserts", [])
                     if table_name not in self.app.tables:
                         self.app.tables[table_name] = []
@@ -112,8 +116,11 @@ class DataService:
                 if all(k in self.app.tables for k in rost_init) and init_check:
                     self.app.initialize_roster()
 
-                # # Attempt a price refresh
-                # self.refresh_all_prices()
+                # When the claim check is triggered, send an alphebetized list to the claim_completer
+                if claim_check:
+                    claim_list = sorted([c["name"] for c in self.app.tables["claim_state"] if "name" in c])
+                    current_model = self.app.claim_completer.model()
+                    current_model.setStringList(claim_list)
             elif "TransactionUpdate" in message:
                 logging.debug(f"Received updated data from {channel_name}")
             else:

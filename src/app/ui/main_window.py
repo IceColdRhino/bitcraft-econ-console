@@ -6,8 +6,8 @@ import sys
 
 np.seterr(divide="ignore", invalid="ignore")
 
-from PySide6.QtCore import QSize, Qt, QTimer
-from PySide6.QtWidgets import QMainWindow, QTabWidget
+from PySide6.QtCore import QSize, QStringListModel, Qt, QTimer
+from PySide6.QtWidgets import QCompleter, QMainWindow, QTabWidget
 
 from app.core.data_paths import get_user_data_path
 from app.core.data_service import DataService
@@ -49,22 +49,29 @@ class MainWindow(QMainWindow):
         self.is_shutting_down = False
         self.shutdown_dialog = None
 
+        # Building the GUI
+        claim_model = QStringListModel([])
+        self.claim_completer = QCompleter()
+        self.claim_completer.setModel(claim_model)
         self.tabs = TabWidget(app=self)
         self.setCentralWidget(self.tabs)
 
+        # Starting data-handling
         self.data_service = DataService(app=self)
 
         delay_time_ms = 60000
         logging.info(
             f"Waiting {int(delay_time_ms / 1000)} s to perform full price refresh"
         )
-        QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
+        #QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
 
     def _load_settings(self):
         """Load settings, with fallback default values"""
         default_settings = {
             "price": {
                 "scope": "global",
+                "claim_id": -1,
+                "claim_name": "undefined",
             },
             "debug": {
                 "logging_level": "DEBUG",

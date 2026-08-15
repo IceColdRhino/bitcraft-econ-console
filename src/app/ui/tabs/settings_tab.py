@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QRadioButton,
     QScrollArea,
     QVBoxLayout,
@@ -101,7 +102,6 @@ class SettingsTab(QScrollArea):
         card_frame.setStyleSheet(
             f"background-color: {get_color('BACKGROUND_SECONDARY')}; border-color: {get_color('BORDER_DEFAULT')};"
         )
-        # card_frame.setMinimumSize(200, 100)
 
         # Card content
         content_frame = QWidget(card_frame)
@@ -168,12 +168,29 @@ class SettingsTab(QScrollArea):
             global_button.setChecked(True)
         button_group.addButton(global_button)
         button_group.addButton(claim_button)
-        global_button.toggled.connect(self.on_scope_change)
+        global_button.toggled.connect(self._on_scope_change)
         scope_layout.addWidget(global_button)
         scope_layout.addWidget(claim_button)
         parent.layout().addWidget(scope_section)
 
-    def on_scope_change(self,global_scope):
+        # Claim select subsection
+        claim_select_section = QWidget(parent)
+        claim_select_layout = QHBoxLayout(claim_select_section)
+        claim_select_label = QLabel(
+            parent=claim_select_section,
+            text=f"Selected Claim: {self.app.settings.get('price',{}).get('claim_name','undefined')}"
+        )
+        claim_select_layout.addWidget(claim_select_label)
+        self.claim_input = QLineEdit(
+            parent=claim_select_section,
+            placeholderText="Claim search..."
+        )
+        self.claim_input.setCompleter(self.app.claim_completer)
+        self.claim_input.editingFinished.connect(self._on_claim_search)
+        claim_select_layout.addWidget(self.claim_input)
+        parent.layout().addWidget(claim_select_section)
+
+    def _on_scope_change(self,global_scope):
         """Detect change in the "global scope" button specifically"""
         if global_scope:
             self.app.settings["price"]["scope"] = "global"
@@ -181,6 +198,17 @@ class SettingsTab(QScrollArea):
             self.app.settings["price"]["scope"] = "claim"
         logging.info(f"Price estimates set to {self.app.settings['price']['scope']} scope")
         self._save_settings()
+
+    def _on_claim_search(self):
+        input_text = self.claim_input.text()
+        claim = next((c for c in self.app.tables.get("claim_state",[]) if c.get("name") == input_text), None)
+        if claim is not None:
+            self.app.settings["price"]["claim_id"] = claim["entity_id"]
+            self.app.settings["price"]["claim_name"] = claim["name"]
+            self._save_settings()
+            logging.info(f"Switched claim of interest to: {claim['name']}")
+        else:
+            logging.warning(f"Unable to find searched claim: {input_text}")
 
     def _create_debug_section(self, parent):
         """Create the debug section."""
