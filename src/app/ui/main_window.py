@@ -58,8 +58,7 @@ class MainWindow(QMainWindow):
         logging.info(
             f"Waiting {int(delay_time_ms / 1000)} s to perform full price refresh"
         )
-        #QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
-        QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices_test)
+        QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
 
     def _load_settings(self):
         """Load settings, with fallback default values"""
@@ -98,7 +97,7 @@ class MainWindow(QMainWindow):
     def _load_old_market(self):
         default_market = {
             "global": {},
-            "claim": {"claim_id": 0},
+            "claim": {"claim_id": -1},
         }
         try:
             file_path = get_user_data_path("market.json")
@@ -107,7 +106,7 @@ class MainWindow(QMainWindow):
 
             # Deep merge: update defaults with saved market
             for scope, details in saved_market.items():
-                if scope in default_market and isinstance(scope, dict):
+                if scope in default_market and isinstance(scope, str):
                     default_market[scope].update(details)
                 else:
                     default_market[scope] = details

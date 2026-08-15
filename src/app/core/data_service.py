@@ -2,11 +2,9 @@ import asyncio
 import json
 import logging
 import numpy as np
-
-# import queue
-# import threading
-import time
+import typing
 import websockets
+import websockets.typing
 
 from PySide6.QtCore import QThread, Signal, QTimer, QObject
 
@@ -123,33 +121,6 @@ class DataService:
             logging.error(message)
 
     def refresh_all_prices(self):
-        if not hasattr(self.app, "product_rost"):
-            logging.debug(
-                f"Full price refresh was called before product roster was established"
-            )
-            return
-        if not all(
-            k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
-        ):
-            logging.debug(
-                f"{product_id} price refresh was called before market orders were available"
-            )
-            return
-
-        logging.info("Performing full price refresh")
-        for product_id in self.app.product_rost:
-            orders = pricing.price_calc(app=self.app, product_id=product_id, claim_id=0)
-            P_e = orders["P_e"]
-
-            ratio = self.app.product_rost.get(product_id, {}).get("Pack Size", 1)
-            pack_price = np.round(ratio * P_e, 1)
-            self.app.product_rost[product_id]["Pack Price"] = float(pack_price)
-            sig_figs = int(np.floor(np.log10(ratio)) + 1)
-            unit_price = np.round(P_e, sig_figs)
-            self.app.product_rost[product_id]["Unit Price"] = float(unit_price)
-        getattr(self.app.tabs, "🪙 Prices").model.update_table(self.app.product_rost)
-
-    def refresh_all_prices_test(self):
         """Build a queue and then run through with delay until empty"""
         if not hasattr(self.app, "product_rost"):
             logging.debug(
@@ -224,27 +195,6 @@ class DataService:
             logging.info("Finished price refresh")
             self.refresh_timer.stop()
 
-    def refresh_price(self, product_id):
-        """Updating the table is a costly process, so this is only intended for updates, not iterating through initial subscription"""
-        if not all(
-            k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
-        ):
-            logging.debug(
-                f"{product_id} price refresh was called before market orders were available"
-            )
-            return
-
-        # orders = pricing.price_calc(app=self.app,product_id=product_id,claim_id=0)
-        # P_e = orders["P_e"]
-        # P_e = 3.141592654
-        # ratio = self.app.product_rost.get(product_id,{}).get("Pack Size",1)
-        # pack_price = np.round(ratio*P_e,1)
-        # self.app.product_rost[product_id]["Pack Price"] = pack_price
-
-        # getattr(self.app.tabs,"🪙 Prices").model.update_table(self.app.product_rost)
-        # logging.info(orders)
-
-
 class WebSocketSignals(QObject):
     message_received = Signal(str, str)  # (channel_name, message_content)
 
@@ -267,7 +217,7 @@ class WebSocketWorker(QThread):
 
     async def connect_and_subscribe(self):
         try:
-            proto = "v1.json.spacetimedb"
+            proto = typing.cast(websockets.typing.Subprotocol, "v1.json.spacetimedb")
             payload = {
                 "Subscribe": {
                     "request_id": 1,
