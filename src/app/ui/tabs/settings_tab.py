@@ -198,6 +198,10 @@ class SettingsTab(QScrollArea):
             self.app.settings["price"]["scope"] = "claim"
         logging.info(f"Price estimates set to {self.app.settings['price']['scope']} scope")
         self._save_settings()
+        try:
+            getattr(self.app.tabs, "🪙 Prices").model.update_table(self.app.product_rost)
+        except:
+            logging.warning("Scope settings were changed before product roster was initiliazed")
 
     def _on_claim_search(self):
         input_text = self.claim_input.text()

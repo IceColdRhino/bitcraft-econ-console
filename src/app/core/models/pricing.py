@@ -5,7 +5,7 @@ import pandas as pd
 np.seterr(divide="ignore", invalid="ignore")
 
 
-def price_calc(app, product_id, claim_id):
+def price_calc(app, product_id, claim_id=0):
     """Given market data (stored in 'app'), return price modeling for the given product within the given scope."""
     logging.debug(f"Finding price for {product_id} in claim {claim_id}")
     # Grab order data from current standing orders

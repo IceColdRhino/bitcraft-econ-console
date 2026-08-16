@@ -63,7 +63,7 @@ class MainWindow(QMainWindow):
         logging.info(
             f"Waiting {int(delay_time_ms / 1000)} s to perform full price refresh"
         )
-        #QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
+        QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
 
     def _load_settings(self):
         """Load settings, with fallback default values"""
