@@ -88,9 +88,6 @@ class DataService:
             elif "InitialSubscription" in message:
                 logging.info(f"Received initial data from {channel_name}")
 
-                # Desc tables necessary for initializing the product and crafting rosters
-                rost_init = ["cargo_desc", "crafting_recipe_desc", "item_desc"]
-                init_check = False  # This variable makes sure we don't re-initialize every time a new irrelevant table comes in
                 claim_check = False
 
                 # Bulk import the entire response to the local copy of the tables...
@@ -99,8 +96,6 @@ class DataService:
                 msg_tables = msg_update.get("tables", [])
                 for entry in msg_tables:
                     table_name = entry.get("table_name")
-                    if table_name in rost_init:
-                        init_check = True
                     if table_name == "claim_state":
                         claim_check = True
                     inserts = entry.get("updates", [{}])[0].get("inserts", [])
@@ -111,10 +106,6 @@ class DataService:
                     for i in range(0, len(inserts)):
                         inserts[i] = json.loads(inserts[i])
                     self.app.tables[table_name] += inserts
-
-                # Once this is triggered, intialize the "static" keys for the product lookup and crafting lookup
-                if all(k in self.app.tables for k in rost_init) and init_check:
-                    self.app.initialize_roster()
 
                 # When the claim check is triggered, send an alphebetized list to the claim_completer
                 if claim_check:
@@ -140,13 +131,13 @@ class DataService:
 
         # Temporary queue method - all items in product roster, in descending order of estimated item value
         self.product_queue = sorted(self.app.product_rost,
-                                    key = lambda p: self.app.product_rost[p].get("Unit Price",-1),
+                                    key = lambda p: self.app.product_rost[p].get("Unit Price",1e-12),
                                     reverse=True)
 
         # Start the refresh queue
         self.refresh_timer = QTimer()
-        #self.refresh_timer.timeout.connect(self.refresh_queue_price)
-        self.refresh_timer.timeout.connect(self.refresh_queue_price_test)
+        self.refresh_timer.timeout.connect(self.refresh_queue_price)
+        #self.refresh_timer.timeout.connect(self.refresh_queue_price_test)
         self.refresh_timer.start(100)
 
     def refresh_queue_price_test(self):

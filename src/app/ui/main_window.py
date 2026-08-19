@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
 
         # Starting data-handling
         self.data_service = DataService(app=self)
+        self.initialize_product_roster()
 
         delay_time_ms = 60000
         logging.info(
@@ -129,7 +130,13 @@ class MainWindow(QMainWindow):
             logging.error(f"Error reading market.json: {e}, calculating market from scratch")
         self.market = default_market
 
-    def initialize_roster(self):
+    def initialize_product_roster(self):
+        require = ["cargo_desc", "crafting_recipe_desc", "item_desc"]
+        if not all(k in self.tables for k in require):
+            logging.warning("Product roster was called before ready. Waiting 10 seconds and trying again")
+            QTimer.singleShot(10000, self.initialize_product_roster)
+            return
+        
         logging.info("Initializing product roster")
         self.product_rost = {}
         # Roster keys are "human readable"/display-table-ready
