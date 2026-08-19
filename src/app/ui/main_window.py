@@ -218,6 +218,18 @@ class MainWindow(QMainWindow):
             }
             self.product_rost[product_id] = entry_dict
 
+        # Initialize the roster with global prices by default. Just used for priority sorting
+        # A product with no previously calulcated price gets prioritized higher than one with price 0
+        for product_id in self.product_rost:
+            P_e = self.market.get("global",{}).get(product_id,{}).get("price",0.1)
+            ratio = self.product_rost[product_id].get("Pack Size",1)
+            sig_figs = int(np.floor(np.log10(ratio)) + 1)
+            pack_price = np.round(ratio * P_e, 1)
+            unit_price = np.round(P_e, sig_figs)
+            self.product_rost[product_id]["Pack Price"] = float(pack_price)
+            self.product_rost[product_id]["Unit Price"] = float(unit_price)
+        logging.info(self.product_rost)
+
         # This is fucking gross...
         getattr(self.tabs, "🪙 Prices").model.update_table(self.product_rost)
 
