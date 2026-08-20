@@ -42,19 +42,19 @@ class DataService:
             "sell_order",
         ]
         active_regions = [
-            3,
-            7,
-            8,
-            9,
-            11,
-            12,
-            13,
+            # 3,
+            # 7,
+            # 8,
+            # 9,
+            # 11,
+            # 12,
+            # 13,
             14,
-            15,
-            17,
-            18,
-            19,
-            23,
+            # 15,
+            # 17,
+            # 18,
+            # 19,
+            # 23,
         ]
         for table in state_tables:
             for region in active_regions:
@@ -242,7 +242,7 @@ class DataService:
         unit_price = np.round(P_e, sig_figs)
         self.app.product_rost[product_id]["Unit Price"] = float(unit_price)
 
-        getattr(self.app.tabs,"🪙 Prices").model.update_table(self.app.product_rost)
+        getattr(self.app.tabs,"🪙 Prices").model.update_table()
 
 
         # Save new prices
@@ -279,7 +279,6 @@ class DataService:
 
 class WebSocketSignals(QObject):
     message_received = Signal(str, str)  # (channel_name, message_content)
-
 
 class WebSocketWorker(QThread):
     def __init__(self, uri, channel_name, queries):

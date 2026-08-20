@@ -120,7 +120,8 @@ class PriceTableModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return self._data[index.row()][index.column()]
 
-    def update_table(self, new_data):
+    def update_table(self):
+        new_data = self.app.product_rost
         logging.debug("Updating price table")
         self.layoutAboutToBeChanged.emit()
 

@@ -176,14 +176,20 @@ class SettingsTab(QScrollArea):
         # Claim select subsection
         claim_select_section = QWidget(parent)
         claim_select_layout = QHBoxLayout(claim_select_section)
-        claim_select_label = QLabel(
+        self.claim_select_label = QLabel(
             parent=claim_select_section,
             text=f"Selected Claim: {self.app.settings.get('price',{}).get('claim_name','undefined')}"
         )
-        claim_select_layout.addWidget(claim_select_label)
+        self.claim_select_label.setStyleSheet(
+            f"font-size: 12px; color: {get_color('TEXT_PRIMARY')};"
+        )
+        claim_select_layout.addWidget(self.claim_select_label)
         self.claim_input = QLineEdit(
             parent=claim_select_section,
             placeholderText="Claim search..."
+        )
+        self.claim_input.setStyleSheet(
+            f"font-size: 12px; color: {get_color('TEXT_PRIMARY')};"
         )
         self.claim_input.setCompleter(self.app.claim_completer)
         self.claim_input.editingFinished.connect(self._on_claim_search)
@@ -199,7 +205,7 @@ class SettingsTab(QScrollArea):
         logging.info(f"Price estimates set to {self.app.settings['price']['scope']} scope")
         self._save_settings()
         try:
-            getattr(self.app.tabs, "🪙 Prices").model.update_table(self.app.product_rost)
+            getattr(self.app.tabs, "🪙 Prices").model.update_table()
         except:
             logging.warning("Scope settings were changed before product roster was initiliazed")
 
@@ -213,6 +219,9 @@ class SettingsTab(QScrollArea):
             logging.info(f"Switched claim of interest to: {claim['name']}")
         else:
             logging.warning(f"Unable to find searched claim: {input_text}")
+        self.claim_select_label.setText(f"Selected Claim: {self.app.settings.get('price',{}).get('claim_name','undefined')}")
+        getattr(self.app.tabs, "🪙 Prices").model.update_table()
+        self.claim_input.clear()
 
     def _create_debug_section(self, parent):
         """Create the debug section."""
@@ -417,21 +426,21 @@ class SettingsTab(QScrollArea):
             #     )
 
             # Send updated settings to notification service
-            if (
-                hasattr(self.app, "data_service")
-                and self.app.data_service
-                and hasattr(self.app.data_service, "notification_service")
-            ):
-                self.app.data_service.notification_service.update_settings(
-                    self.app.settings
-                )
-                logging.debug(
-                    f"Settings sent to notification service: {self.app.settings['notifications']}"
-                )
-            else:
-                logging.warning(
-                    "Could not access notification service to update settings"
-                )
+            # if (
+            #     hasattr(self.app, "data_service")
+            #     and self.app.data_service
+            #     and hasattr(self.app.data_service, "notification_service")
+            # ):
+            #     self.app.data_service.notification_service.update_settings(
+            #         self.app.settings
+            #     )
+            #     logging.debug(
+            #         f"Settings sent to notification service: {self.app.settings['notifications']}"
+            #     )
+            # else:
+            #     logging.warning(
+            #         "Could not access notification service to update settings"
+            #     )
 
             # Save to player_data.json
             try:

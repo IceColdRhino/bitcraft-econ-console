@@ -64,7 +64,7 @@ class MainWindow(QMainWindow):
         logging.info(
             f"Waiting {int(delay_time_ms / 1000)} s to perform full price refresh"
         )
-        QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
+        #QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
 
     def _load_settings(self):
         """Load settings, with fallback default values"""
@@ -228,10 +228,8 @@ class MainWindow(QMainWindow):
             unit_price = np.round(P_e, sig_figs)
             self.product_rost[product_id]["Pack Price"] = float(pack_price)
             self.product_rost[product_id]["Unit Price"] = float(unit_price)
-        logging.info(self.product_rost)
 
-        # This is fucking gross...
-        getattr(self.tabs, "🪙 Prices").model.update_table(self.product_rost)
+        getattr(self.tabs, "🪙 Prices").model.update_table()
 
     def closeEvent(self, event):
         # Clean up threads gracefully on app exit
