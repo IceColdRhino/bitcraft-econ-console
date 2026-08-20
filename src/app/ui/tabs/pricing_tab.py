@@ -48,6 +48,8 @@ class PricingTab(QWidget):
 
     def _create_table(self):
         headers = [
+            "Product ID",
+            "Select",
             "Name",
             "Type",
             "Tag",
@@ -57,11 +59,8 @@ class PricingTab(QWidget):
             "Pack Price",
             "Unit Price",
         ]
-        default_data = {"Filler": {}}
-        for key in headers:
-            default_data["Filler"][key] = "Loading..."
 
-        self.model = PriceTableModel(self.app, headers, default_data)
+        self.model = PriceTableModel(self.app, headers)
 
         self.proxy_model = PriceFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -69,7 +68,7 @@ class PricingTab(QWidget):
         self.table = QTableView()
         self.table.setModel(self.proxy_model)
         self.table.setSortingEnabled(True)
-        self.table.sortByColumn(7, Qt.DescendingOrder)  # pyright: ignore[reportAttributeAccessIssue]
+        self.table.sortByColumn(9, Qt.DescendingOrder)  # pyright: ignore[reportAttributeAccessIssue]
         self.table.doubleClicked.connect(self.on_double_click)
 
         self.main_layout.addWidget(self.table)
@@ -83,7 +82,7 @@ class PricingTab(QWidget):
 
         row = proxy_index.row()
         product_id = self.proxy_model.data(
-            self.proxy_model.index(row, 8),
+            self.proxy_model.index(row, 0),
             Qt.ItemDataRole.DisplayRole,
         )
 
@@ -101,24 +100,23 @@ class PriceFilterProxyModel(QSortFilterProxyModel):
 
 
 class PriceTableModel(QAbstractTableModel):
-    def __init__(self, app, headers, data):
+    def __init__(self, app, headers):
         super().__init__()
         self.app = app
         self._headers = headers
-        list_data = []
-        for product_id in data:
-            entry = data[product_id]
-            entry_list = []
-            for key in self._headers:
-                entry_list.append(entry.get(key, "Loading..."))
-            entry_list.append(product_id)
-            list_data.append(entry_list)
-        self._data = list_data
-        self._headers.append("Product ID")
+        self._data = [["Loading..."]*len(self._headers)]
+
+    def flags(self, index):
+        if index.column() == 1:
+            return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsSelectable
+        return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
     def data(self, index, role):
         if role == Qt.ItemDataRole.DisplayRole:
             return self._data[index.row()][index.column()]
+
+        if role == Qt.ItemDataRole.CheckStateRole and index.column() == 1:
+            return Qt.CheckState.Checked if self._data[index.row()][1] else Qt.CheckState.Unchecked
 
     def update_table(self):
         new_data = self.app.product_rost
@@ -161,6 +159,8 @@ class PriceTableModel(QAbstractTableModel):
                     entry_list.append(pack_price)
                 elif key == "Unit Price":
                     entry_list.append(unit_price)
+                elif key == "Select":
+                    entry_list.append(False)
                 else:
                     entry_list.append(entry.get(key, "Loading..."))
             list_data.append(entry_list)
