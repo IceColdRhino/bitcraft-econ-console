@@ -131,8 +131,8 @@ class SettingsTab(QScrollArea):
         scope_section = QWidget(parent)
         scope_layout = QHBoxLayout(scope_section)
         scope_label = QLabel(
-            parent=scope_section,
-            text="Choose scope of price estimates: ")
+            parent=scope_section, text="Choose scope of price estimates: "
+        )
         scope_label.setStyleSheet(
             f"font-size: 12px; color: {get_color('TEXT_PRIMARY')};"
         )
@@ -160,7 +160,7 @@ class SettingsTab(QScrollArea):
         global_button.setStyleSheet(button_style)
         claim_button = QRadioButton("Claim-specific")
         claim_button.setStyleSheet(button_style)
-        if self.app.settings.get("price",{}).get("scope") == "claim":
+        if self.app.settings.get("price", {}).get("scope") == "claim":
             global_button.setChecked(False)
             claim_button.setChecked(True)
         else:
@@ -178,15 +178,14 @@ class SettingsTab(QScrollArea):
         claim_select_layout = QHBoxLayout(claim_select_section)
         self.claim_select_label = QLabel(
             parent=claim_select_section,
-            text=f"Selected Claim: {self.app.settings.get('price',{}).get('claim_name','undefined')}"
+            text=f"Selected Claim: {self.app.settings.get('price', {}).get('claim_name', 'undefined')}",
         )
         self.claim_select_label.setStyleSheet(
             f"font-size: 12px; color: {get_color('TEXT_PRIMARY')};"
         )
         claim_select_layout.addWidget(self.claim_select_label)
         self.claim_input = QLineEdit(
-            parent=claim_select_section,
-            placeholderText="Claim search..."
+            parent=claim_select_section, placeholderText="Claim search..."
         )
         self.claim_input.setStyleSheet(
             f"font-size: 12px; color: {get_color('TEXT_PRIMARY')};"
@@ -196,22 +195,33 @@ class SettingsTab(QScrollArea):
         claim_select_layout.addWidget(self.claim_input)
         parent.layout().addWidget(claim_select_section)
 
-    def _on_scope_change(self,global_scope):
+    def _on_scope_change(self, global_scope):
         """Detect change in the "global scope" button specifically"""
         if global_scope:
             self.app.settings["price"]["scope"] = "global"
         else:
             self.app.settings["price"]["scope"] = "claim"
-        logging.info(f"Price estimates set to {self.app.settings['price']['scope']} scope")
+        logging.info(
+            f"Price estimates set to {self.app.settings['price']['scope']} scope"
+        )
         self._save_settings()
         try:
             getattr(self.app.tabs, "🪙 Prices").model.update_table()
         except:
-            logging.warning("Scope settings were changed before product roster was initiliazed")
+            logging.warning(
+                "Scope settings were changed before product roster was initiliazed"
+            )
 
     def _on_claim_search(self):
         input_text = self.claim_input.text()
-        claim = next((c for c in self.app.tables.get("claim_state",[]) if c.get("name") == input_text), None)
+        claim = next(
+            (
+                c
+                for c in self.app.tables.get("claim_state", [])
+                if c.get("name") == input_text
+            ),
+            None,
+        )
         if claim is not None:
             self.app.settings["price"]["claim_id"] = claim["entity_id"]
             self.app.settings["price"]["claim_name"] = claim["name"]
@@ -220,7 +230,9 @@ class SettingsTab(QScrollArea):
             self.app.data_service.refresh_claim_prices()
         else:
             logging.warning(f"Unable to find searched claim: {input_text}")
-        self.claim_select_label.setText(f"Selected Claim: {self.app.settings.get('price',{}).get('claim_name','undefined')}")
+        self.claim_select_label.setText(
+            f"Selected Claim: {self.app.settings.get('price', {}).get('claim_name', 'undefined')}"
+        )
         getattr(self.app.tabs, "🪙 Prices").model.update_table()
         self.claim_input.clear()
 

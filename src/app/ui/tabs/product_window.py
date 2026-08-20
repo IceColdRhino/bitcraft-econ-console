@@ -23,8 +23,8 @@ class ProductWindow(QWidget):
         self.setWindowTitle(detail.get("Name", "nameError"))
         self.title = QLabel(detail.get("Name", "nameError"))
 
-        scope = self.app.settings.get("price",{}).get("scope","global")
-        self.orders = self.app.market.get(scope,{}).get(product_id,{})
+        scope = self.app.settings.get("price", {}).get("scope", "global")
+        self.orders = self.app.market.get(scope, {}).get(product_id, {})
 
         self.price = QLabel(
             f"Estimated Market Price: {detail.get('Unit Price', 'priceError')}"
@@ -45,8 +45,8 @@ class ProductWindow(QWidget):
 
         # Sell Order Book
         self.plot_graph.plot(
-            x=self.orders.get("sell",{}).get("price",[]),
-            y=self.orders.get("sell",{}).get("cum_q",[]),
+            x=self.orders.get("sell", {}).get("price", []),
+            y=self.orders.get("sell", {}).get("cum_q", []),
             stepMode="right",
             fillLevel=0,
             brush=pg.mkBrush(245, 191, 66, 20),
@@ -54,8 +54,8 @@ class ProductWindow(QWidget):
         )
         # Buy Order Book
         self.plot_graph.plot(
-            x=self.orders.get("buy",{}).get("price",[]),
-            y=self.orders.get("buy",{}).get("cum_q",[]),
+            x=self.orders.get("buy", {}).get("price", []),
+            y=self.orders.get("buy", {}).get("cum_q", []),
             stepMode="right",
             fillLevel=0,
             brush=pg.mkBrush(16, 132, 222, 20),
@@ -63,8 +63,8 @@ class ProductWindow(QWidget):
         )
         # Sell Unit Prices
         self.plot_graph.plot(
-            x=self.orders.get("sell",{}).get("unit_price",[]),
-            y=self.orders.get("sell",{}).get("cum_q",[]),
+            x=self.orders.get("sell", {}).get("unit_price", []),
+            y=self.orders.get("sell", {}).get("cum_q", []),
             pen=None,
             symbol="o",
             symbolBrush=pg.mkBrush(245, 191, 66, 80),
@@ -72,8 +72,8 @@ class ProductWindow(QWidget):
         )
         # Buy Unit Prices
         self.plot_graph.plot(
-            x=self.orders.get("buy",{}).get("unit_price",[]),
-            y=self.orders.get("buy",{}).get("cum_q",[]),
+            x=self.orders.get("buy", {}).get("unit_price", []),
+            y=self.orders.get("buy", {}).get("cum_q", []),
             pen=None,
             symbol="o",
             symbolBrush=pg.mkBrush(16, 132, 222, 20),
@@ -93,35 +93,49 @@ class ProductWindow(QWidget):
         # )
 
         p = np.linspace(
-            start=np.min([
-                self.orders.get("buy",{}).get("unit_price",[])+
-                self.orders.get("sell",{}).get("unit_price",[])+
-                [self.orders.get("price",0)]
-            ]),
-            stop=np.max([
-                self.orders.get("buy",{}).get("unit_price",[])+
-                self.orders.get("sell",{}).get("unit_price",[])+
-                [self.orders.get("price",0)]
-            ]),
+            start=np.min(
+                [
+                    self.orders.get("buy", {}).get("unit_price", [])
+                    + self.orders.get("sell", {}).get("unit_price", [])
+                    + [self.orders.get("price", 0)]
+                ]
+            ),
+            stop=np.max(
+                [
+                    self.orders.get("buy", {}).get("unit_price", [])
+                    + self.orders.get("sell", {}).get("unit_price", [])
+                    + [self.orders.get("price", 0)]
+                ]
+            ),
             num=10000,
         )
         # Supply curve
-        Q_s = self.orders.get("sell",{}).get("C",0) * (1 - (self.orders.get("sell",{}).get("T",0) / p))
+        Q_s = self.orders.get("sell", {}).get("C", 0) * (
+            1 - (self.orders.get("sell", {}).get("T", 0) / p)
+        )
         self.plot_graph.plot(
             x=p, y=Q_s, pen=pg.mkPen(245, 191, 66, 100), name="Estimated Supply"
         )
         # Demand curve
-        Q_b = -self.orders.get("buy",{}).get("C",0) * (1 - (self.orders.get("buy",{}).get("T",0) / p))
+        Q_b = -self.orders.get("buy", {}).get("C", 0) * (
+            1 - (self.orders.get("buy", {}).get("T", 0) / p)
+        )
         self.plot_graph.plot(
             x=p, y=Q_b, pen=pg.mkPen(16, 132, 222, 100), name="Estimated Demand"
         )
 
         # # Equilibrium point in the middle
         self.plot_graph.setXRange(0, self.orders.get("price") * 2)
-        self.plot_graph.setYRange(0, np.max([
-            self.orders.get("buy",{}).get("cum_q",[])+
-            self.orders.get("sell",{}).get("cum_q",[])
-            ])/0.9)
+        self.plot_graph.setYRange(
+            0,
+            np.max(
+                [
+                    self.orders.get("buy", {}).get("cum_q", [])
+                    + self.orders.get("sell", {}).get("cum_q", [])
+                ]
+            )
+            / 0.9,
+        )
 
         self.plot_graph.setLabel("left", "Cumulative Quantity")
         self.plot_graph.setLabel("bottom", "Price [hc]")

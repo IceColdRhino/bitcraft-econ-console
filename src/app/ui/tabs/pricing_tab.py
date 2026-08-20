@@ -69,7 +69,7 @@ class PricingTab(QWidget):
         self.table = QTableView()
         self.table.setModel(self.proxy_model)
         self.table.setSortingEnabled(True)
-        self.table.sortByColumn(7, Qt.DescendingOrder) # pyright: ignore[reportAttributeAccessIssue]
+        self.table.sortByColumn(7, Qt.DescendingOrder)  # pyright: ignore[reportAttributeAccessIssue]
         self.table.doubleClicked.connect(self.on_double_click)
 
         self.main_layout.addWidget(self.table)
@@ -125,8 +125,10 @@ class PriceTableModel(QAbstractTableModel):
         logging.debug("Updating price table")
         self.layoutAboutToBeChanged.emit()
 
-        if self.app.settings.get("price",{}).get("scope") == "claim":
-            getattr(self.app.tabs, "🪙 Prices").scope_label.setText(f"{self.app.settings.get("price",{}).get("claim_name","undefined")} Prices")
+        if self.app.settings.get("price", {}).get("scope") == "claim":
+            getattr(self.app.tabs, "🪙 Prices").scope_label.setText(
+                f"{self.app.settings.get('price', {}).get('claim_name', 'undefined')} Prices"
+            )
         else:
             getattr(self.app.tabs, "🪙 Prices").scope_label.setText("Global Prices")
 
@@ -134,13 +136,17 @@ class PriceTableModel(QAbstractTableModel):
         for product_id in new_data:
             entry = new_data[product_id]
 
-            if self.app.market["claim"]["claim_id"]==self.app.settings["price"]["claim_id"] and self.app.settings["price"]["scope"]=="claim":
+            if (
+                self.app.market["claim"]["claim_id"]
+                == self.app.settings["price"]["claim_id"]
+                and self.app.settings["price"]["scope"] == "claim"
+            ):
                 # If saved prices claim_id doesn't match search claim_id, revert to global prices
-                P_e = self.app.market["claim"].get(product_id,{}).get("price")
+                P_e = self.app.market["claim"].get(product_id, {}).get("price")
             else:
-                P_e = self.app.market["global"].get(product_id,{}).get("price")
+                P_e = self.app.market["global"].get(product_id, {}).get("price")
             if P_e is not None:
-                ratio = self.app.product_rost.get(product_id,{}).get("Pack Size",1)
+                ratio = self.app.product_rost.get(product_id, {}).get("Pack Size", 1)
                 sig_figs = int(np.floor(np.log10(ratio)) + 1)
                 pack_price = float(np.round(ratio * P_e, 1))
                 unit_price = float(np.round(P_e, sig_figs))

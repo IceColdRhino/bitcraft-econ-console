@@ -15,8 +15,8 @@ def price_calc(app, product_id, claim_id=0):
 
     # Optionally filter for a particular claim
     if claim_id != 0:
-        all_buys = all_buys[all_buys["claim_entity_id"]==claim_id]
-        all_sells = all_sells[all_sells["claim_entity_id"]==claim_id]
+        all_buys = all_buys[all_buys["claim_entity_id"] == claim_id]
+        all_sells = all_sells[all_sells["claim_entity_id"] == claim_id]
 
     # Filter for a particular item
     item_buys = item_filter(all_buys, product_id)

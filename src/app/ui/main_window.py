@@ -64,9 +64,8 @@ class MainWindow(QMainWindow):
         logging.info(
             f"Waiting {int(delay_time_ms / 1000)} s to perform full price refresh"
         )
-        #QTimer.singleShot(delay_time_ms, self.data_service.refresh_all_prices)
-        #QTimer.singleShot(delay_time_ms, self.data_service.refresh_global_prices)
-        #QTimer.singleShot(delay_time_ms, self.data_service.refresh_claim_prices)
+        QTimer.singleShot(delay_time_ms, self.data_service.refresh_global_prices)
+        QTimer.singleShot(delay_time_ms, self.data_service.refresh_claim_prices)
 
     def _load_settings(self):
         """Load settings, with fallback default values"""
@@ -129,16 +128,20 @@ class MainWindow(QMainWindow):
         except json.JSONDecodeError:
             logging.warning("market.json is malformed, calculating market from scratch")
         except Exception as e:
-            logging.error(f"Error reading market.json: {e}, calculating market from scratch")
+            logging.error(
+                f"Error reading market.json: {e}, calculating market from scratch"
+            )
         self.market = default_market
 
     def initialize_product_roster(self):
         require = ["cargo_desc", "crafting_recipe_desc", "item_desc"]
         if not all(k in self.tables for k in require):
-            logging.warning("Product roster was called before ready. Waiting 10 seconds and trying again")
+            logging.warning(
+                "Product roster was called before ready. Waiting 10 seconds and trying again"
+            )
             QTimer.singleShot(10000, self.initialize_product_roster)
             return
-        
+
         logging.info("Initializing product roster")
         self.product_rost = {}
         # Roster keys are "human readable"/display-table-ready
@@ -223,8 +226,8 @@ class MainWindow(QMainWindow):
         # Initialize the roster with global prices by default. Just used for priority sorting
         # A product with no previously calulcated price gets prioritized higher than one with price 0
         for product_id in self.product_rost:
-            P_e = self.market.get("global",{}).get(product_id,{}).get("price",0.1)
-            ratio = self.product_rost[product_id].get("Pack Size",1)
+            P_e = self.market.get("global", {}).get(product_id, {}).get("price", 0.1)
+            ratio = self.product_rost[product_id].get("Pack Size", 1)
             sig_figs = int(np.floor(np.log10(ratio)) + 1)
             pack_price = np.round(ratio * P_e, 1)
             unit_price = np.round(P_e, sig_figs)
