@@ -217,6 +217,7 @@ class SettingsTab(QScrollArea):
             self.app.settings["price"]["claim_name"] = claim["name"]
             self._save_settings()
             logging.info(f"Switched claim of interest to: {claim['name']}")
+            self.app.data_service.refresh_claim_prices()
         else:
             logging.warning(f"Unable to find searched claim: {input_text}")
         self.claim_select_label.setText(f"Selected Claim: {self.app.settings.get('price',{}).get('claim_name','undefined')}")

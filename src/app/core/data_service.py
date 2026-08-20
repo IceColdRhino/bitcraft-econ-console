@@ -119,121 +119,31 @@ class DataService:
         except:
             logging.error(message)
 
-    def refresh_all_prices(self):
-        """Build a queue and then run through with delay until empty"""
-        if not hasattr(self.app, "product_rost"):
-            logging.debug(
-                f"Full price refresh was called before product roster was established"
-            )
-            return
-        
-        logging.info("Beginning full price refresh")
-
+    def refresh_global_prices(self):
+        """Build a global queue and then run through it with delay until empty"""
+        logging.info("Beginning global price refresh")
         # Temporary queue method - all items in product roster, in descending order of estimated item value
-        self.product_queue = sorted(self.app.product_rost,
-                                    key = lambda p: self.app.product_rost[p].get("Unit Price",1e-12),
-                                    reverse=True)
+        self.global_product_queue = sorted(self.app.product_rost,
+                                           key = lambda p: self.app.product_rost[p].get("Unit Price",1e-15),
+                                           reverse=True)
 
-        # Start the refresh queue
-        self.refresh_timer = QTimer()
-        self.refresh_timer.timeout.connect(self.refresh_queue_price)
-        #self.refresh_timer.timeout.connect(self.refresh_queue_price_test)
-        self.refresh_timer.start(100)
+        # Start the refresh loop
+        self.global_refresh_timer = QTimer()
+        self.global_refresh_timer.timeout.connect(self.check_global_queue)
+        self.global_refresh_timer.start(100)
 
-    def refresh_queue_price_test(self):
-        product_id = self.product_queue[0]
+    def check_global_queue(self):
+        product_id = self.global_product_queue[0]
         if not all(
             k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
         ):
             logging.debug(
-                f"{product_id} price refresh was called before market orders were available"
-            )
-            return
-        product_id = self.product_queue.pop(0)
-
-        g_price = self.refresh_price("global")
-        c_price = self.refresh_price("claim")
-        if self.app.settings["price"]["scope"] == "claim":
-            self.app.product_rost[product_id]["Pack Price"] = float(c_price["pack"])
-            self.app.product_rost[product_id]["Unit Price"] = float(c_price["unit"])
-        else:
-            self.app.product_rost[product_id]["Pack Price"] = float(g_price["pack"])
-            self.app.product_rost[product_id]["Unit Price"] = float(g_price["unit"])
-        getattr(self.app.tabs,"🪙 Prices").model.update_table(self.app.product_rost)
-
-        try:
-            file_path = get_user_data_path("market.json")
-
-            # Write prices to file
-            with open(file_path, "w") as f:
-                json.dump(self.app.market, f, indent=4)
-        except Exception as e:
-            logging.error(f"Error saving to market.json: {e}")
-
-        if len(self.product_queue) == 0:
-            logging.info("Finished price refresh")
-            self.refresh_timer.stop()
-
-    def refresh_price(self,scope):
-        product_id = self.product_queue.pop(0)
-        if not all(
-            k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
-        ):
-            logging.debug(
-                f"{product_id} price refresh was called before market orders were available"
+                f"{product_id} global price check was called before market orders were available"
             )
             return
 
         # Calculate price and load into table
-        if scope == "claim":
-            orders = pricing.price_calc(app=self.app,product_id=product_id)
-        else:
-            orders = pricing.price_calc(app=self.app,product_id=product_id)
-        P_e = orders["P_e"]
-        ratio = self.app.product_rost.get(product_id, {}).get("Pack Size", 1)
-        pack_price = np.round(ratio * P_e, 1)
-        #self.app.product_rost[product_id]["Pack Price"] = float(pack_price)
-        sig_figs = int(np.floor(np.log10(ratio)) + 1)
-        unit_price = np.round(P_e, sig_figs)
-        #self.app.product_rost[product_id]["Unit Price"] = float(unit_price)
-
-        #getattr(self.app.tabs,"🪙 Prices").model.update_table(self.app.product_rost)
-
-
-        # Save new prices
-        self.app.market[scope][product_id] = {
-            "buy": {
-                "price": orders["buy_order_price"].astype(float).tolist(),
-                "cum_q": orders["buy_cumsum_q"].astype(float).tolist(),
-                "unit_price": orders["buy_unit_p"].astype(float).tolist(),
-                "C": float(orders["C_b"]),
-                "T": float(orders["T_b"]),
-            },
-            "sell": {
-                "price": orders["sell_order_price"].astype(float).tolist(),
-                "cum_q": orders["sell_cumsum_q"].astype(float).tolist(),
-                "unit_price": orders["sell_unit_p"].astype(float).tolist(),
-                "C": float(orders["C_s"]),
-                "T": float(orders["T_s"]),
-            },
-            "price": float(orders["P_e"]),
-        }
-
-        price_return = {"pack": pack_price, "unit": unit_price}
-        return price_return
-
-    def refresh_queue_price(self):
-        product_id = self.product_queue.pop(0)
-        if not all(
-            k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
-        ):
-            logging.debug(
-                f"{product_id} price refresh was called before market orders were available"
-            )
-            return
-
-        # Calculate price and load into table
-        orders = pricing.price_calc(app=self.app,product_id=product_id,claim_id=0)
+        orders = pricing.price_calc(app=self.app,product_id=product_id)
         P_e = orders["P_e"]
         ratio = self.app.product_rost.get(product_id, {}).get("Pack Size", 1)
         pack_price = np.round(ratio * P_e, 1)
@@ -243,7 +153,6 @@ class DataService:
         self.app.product_rost[product_id]["Unit Price"] = float(unit_price)
 
         getattr(self.app.tabs,"🪙 Prices").model.update_table()
-
 
         # Save new prices
         self.app.market["global"][product_id] = {
@@ -273,9 +182,243 @@ class DataService:
         except Exception as e:
             logging.error(f"Error saving to market.json: {e}")
 
-        if len(self.product_queue) == 0:
-            logging.info("Finished price refresh")
-            self.refresh_timer.stop()
+        # Remove all copies of completed product id from queue
+        self.global_product_queue = [p for p in self.global_product_queue if p != product_id]
+
+        if len(self.global_product_queue) == 0:
+            logging.info("Finished global price refresh")
+            self.global_refresh_timer.stop()
+
+    def refresh_claim_prices(self):
+        """Build a claim-specific queue and then run through it with delay until empty"""
+        logging.info("Beginning claim price refresh")
+        self.claim_product_queue = sorted(self.app.product_rost,
+                                          key = lambda p: self.app.product_rost[p].get("Unit Price",1e-15),
+                                          reverse=True)
+        # Start the refresh loop
+        self.claim_refresh_timer = QTimer()
+        self.claim_refresh_timer.timeout.connect(self.check_claim_queue)
+        self.claim_refresh_timer.start(100)
+
+    def check_claim_queue(self):
+        claim_id = self.app.settings.get("price",{}).get("claim_id",0)
+        claim_dict = self.app.market.get("claim",{})
+        if claim_dict.get("claim_id",-1) != claim_id:
+            self.app.market["claim"] = {"claim_id": claim_id}
+
+        product_id = self.claim_product_queue[0]
+        if not all(
+            k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
+        ):
+            logging.debug(
+                f"{product_id} claim price check was called before market orders were available"
+            )
+            return
+
+        # Calculate price and load into table
+        orders = pricing.price_calc(app=self.app,product_id=product_id,claim_id=claim_id)
+        P_e = orders["P_e"]
+        ratio = self.app.product_rost.get(product_id, {}).get("Pack Size", 1)
+        pack_price = np.round(ratio * P_e, 1)
+        self.app.product_rost[product_id]["Pack Price"] = float(pack_price)
+        sig_figs = int(np.floor(np.log10(ratio)) + 1)
+        unit_price = np.round(P_e, sig_figs)
+        self.app.product_rost[product_id]["Unit Price"] = float(unit_price)
+
+        getattr(self.app.tabs,"🪙 Prices").model.update_table()
+
+        # Save new prices
+        self.app.market["claim"][product_id] = {
+            "buy": {
+                "price": orders["buy_order_price"].astype(float).tolist(),
+                "cum_q": orders["buy_cumsum_q"].astype(float).tolist(),
+                "unit_price": orders["buy_unit_p"].astype(float).tolist(),
+                "C": float(orders["C_b"]),
+                "T": float(orders["T_b"]),
+            },
+            "sell": {
+                "price": orders["sell_order_price"].astype(float).tolist(),
+                "cum_q": orders["sell_cumsum_q"].astype(float).tolist(),
+                "unit_price": orders["sell_unit_p"].astype(float).tolist(),
+                "C": float(orders["C_s"]),
+                "T": float(orders["T_s"]),
+            },
+            "price": float(orders["P_e"]),
+        }
+
+        try:
+            file_path = get_user_data_path("market.json")
+
+            # Write prices to file
+            with open(file_path, "w") as f:
+                json.dump(self.app.market, f, indent=4)
+        except Exception as e:
+            logging.error(f"Error saving to market.json: {e}")
+
+        # Remove all copies of completed product id from queue
+        self.claim_product_queue = [p for p in self.claim_product_queue if p != product_id]
+
+        if len(self.claim_product_queue) == 0:
+            logging.info("Finished claim price refresh")
+            self.global_refresh_timer.stop()
+
+    # def refresh_all_prices(self):
+    #     """Build a queue and then run through with delay until empty"""
+    #     if not hasattr(self.app, "product_rost"):
+    #         logging.debug(
+    #             f"Full price refresh was called before product roster was established"
+    #         )
+    #         return
+        
+    #     logging.info("Beginning full price refresh")
+
+    #     # Temporary queue method - all items in product roster, in descending order of estimated item value
+    #     self.product_queue = sorted(self.app.product_rost,
+    #                                 key = lambda p: self.app.product_rost[p].get("Unit Price",1e-15),
+    #                                 reverse=True)
+
+    #     # Start the refresh queue
+    #     self.refresh_timer = QTimer()
+    #     self.refresh_timer.timeout.connect(self.refresh_queue_price)
+    #     #self.refresh_timer.timeout.connect(self.refresh_queue_price_test)
+    #     self.refresh_timer.start(100)
+
+    # def refresh_queue_price_test(self):
+    #     product_id = self.product_queue[0]
+    #     if not all(
+    #         k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
+    #     ):
+    #         logging.debug(
+    #             f"{product_id} price refresh was called before market orders were available"
+    #         )
+    #         return
+    #     product_id = self.product_queue.pop(0)
+
+    #     g_price = self.refresh_price("global")
+    #     c_price = self.refresh_price("claim")
+    #     if self.app.settings["price"]["scope"] == "claim":
+    #         self.app.product_rost[product_id]["Pack Price"] = float(c_price["pack"])
+    #         self.app.product_rost[product_id]["Unit Price"] = float(c_price["unit"])
+    #     else:
+    #         self.app.product_rost[product_id]["Pack Price"] = float(g_price["pack"])
+    #         self.app.product_rost[product_id]["Unit Price"] = float(g_price["unit"])
+    #     getattr(self.app.tabs,"🪙 Prices").model.update_table(self.app.product_rost)
+
+    #     try:
+    #         file_path = get_user_data_path("market.json")
+
+    #         # Write prices to file
+    #         with open(file_path, "w") as f:
+    #             json.dump(self.app.market, f, indent=4)
+    #     except Exception as e:
+    #         logging.error(f"Error saving to market.json: {e}")
+
+    #     if len(self.product_queue) == 0:
+    #         logging.info("Finished price refresh")
+    #         self.refresh_timer.stop()
+
+    # def refresh_price(self,scope):
+    #     product_id = self.product_queue.pop(0)
+    #     if not all(
+    #         k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
+    #     ):
+    #         logging.debug(
+    #             f"{product_id} price refresh was called before market orders were available"
+    #         )
+    #         return
+
+    #     # Calculate price and load into table
+    #     if scope == "claim":
+    #         orders = pricing.price_calc(app=self.app,product_id=product_id)
+    #     else:
+    #         orders = pricing.price_calc(app=self.app,product_id=product_id)
+    #     P_e = orders["P_e"]
+    #     ratio = self.app.product_rost.get(product_id, {}).get("Pack Size", 1)
+    #     pack_price = np.round(ratio * P_e, 1)
+    #     #self.app.product_rost[product_id]["Pack Price"] = float(pack_price)
+    #     sig_figs = int(np.floor(np.log10(ratio)) + 1)
+    #     unit_price = np.round(P_e, sig_figs)
+    #     #self.app.product_rost[product_id]["Unit Price"] = float(unit_price)
+
+    #     #getattr(self.app.tabs,"🪙 Prices").model.update_table(self.app.product_rost)
+
+
+    #     # Save new prices
+    #     self.app.market[scope][product_id] = {
+    #         "buy": {
+    #             "price": orders["buy_order_price"].astype(float).tolist(),
+    #             "cum_q": orders["buy_cumsum_q"].astype(float).tolist(),
+    #             "unit_price": orders["buy_unit_p"].astype(float).tolist(),
+    #             "C": float(orders["C_b"]),
+    #             "T": float(orders["T_b"]),
+    #         },
+    #         "sell": {
+    #             "price": orders["sell_order_price"].astype(float).tolist(),
+    #             "cum_q": orders["sell_cumsum_q"].astype(float).tolist(),
+    #             "unit_price": orders["sell_unit_p"].astype(float).tolist(),
+    #             "C": float(orders["C_s"]),
+    #             "T": float(orders["T_s"]),
+    #         },
+    #         "price": float(orders["P_e"]),
+    #     }
+
+    #     price_return = {"pack": pack_price, "unit": unit_price}
+    #     return price_return
+
+    # def refresh_queue_price(self):
+    #     product_id = self.product_queue.pop(0)
+    #     if not all(
+    #         k in self.app.tables for k in ["buy_order_state", "sell_order_state"]
+    #     ):
+    #         logging.debug(
+    #             f"{product_id} price refresh was called before market orders were available"
+    #         )
+    #         return
+
+    #     # Calculate price and load into table
+    #     orders = pricing.price_calc(app=self.app,product_id=product_id,claim_id=0)
+    #     P_e = orders["P_e"]
+    #     ratio = self.app.product_rost.get(product_id, {}).get("Pack Size", 1)
+    #     pack_price = np.round(ratio * P_e, 1)
+    #     self.app.product_rost[product_id]["Pack Price"] = float(pack_price)
+    #     sig_figs = int(np.floor(np.log10(ratio)) + 1)
+    #     unit_price = np.round(P_e, sig_figs)
+    #     self.app.product_rost[product_id]["Unit Price"] = float(unit_price)
+
+    #     getattr(self.app.tabs,"🪙 Prices").model.update_table()
+
+
+    #     # Save new prices
+    #     self.app.market["global"][product_id] = {
+    #         "buy": {
+    #             "price": orders["buy_order_price"].astype(float).tolist(),
+    #             "cum_q": orders["buy_cumsum_q"].astype(float).tolist(),
+    #             "unit_price": orders["buy_unit_p"].astype(float).tolist(),
+    #             "C": float(orders["C_b"]),
+    #             "T": float(orders["T_b"]),
+    #         },
+    #         "sell": {
+    #             "price": orders["sell_order_price"].astype(float).tolist(),
+    #             "cum_q": orders["sell_cumsum_q"].astype(float).tolist(),
+    #             "unit_price": orders["sell_unit_p"].astype(float).tolist(),
+    #             "C": float(orders["C_s"]),
+    #             "T": float(orders["T_s"]),
+    #         },
+    #         "price": float(orders["P_e"]),
+    #     }
+
+    #     try:
+    #         file_path = get_user_data_path("market.json")
+
+    #         # Write prices to file
+    #         with open(file_path, "w") as f:
+    #             json.dump(self.app.market, f, indent=4)
+    #     except Exception as e:
+    #         logging.error(f"Error saving to market.json: {e}")
+
+    #     if len(self.product_queue) == 0:
+    #         logging.info("Finished price refresh")
+    #         self.refresh_timer.stop()
 
 class WebSocketSignals(QObject):
     message_received = Signal(str, str)  # (channel_name, message_content)

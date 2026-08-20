@@ -13,7 +13,10 @@ def price_calc(app, product_id, claim_id=0):
     all_sells = pd.DataFrame(app.tables["sell_order_state"])
     type_map = {"item": 0, "cargo": 1}
 
-    # TODO: Filter for a particular claim
+    # Optionally filter for a particular claim
+    if claim_id != 0:
+        all_buys = all_buys[all_buys["claim_entity_id"]==claim_id]
+        all_sells = all_sells[all_sells["claim_entity_id"]==claim_id]
 
     # Filter for a particular item
     item_buys = item_filter(all_buys, product_id)
