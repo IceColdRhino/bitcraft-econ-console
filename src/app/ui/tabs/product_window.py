@@ -27,7 +27,7 @@ class ProductWindow(QWidget):
         self.orders = self.app.market.get(scope, {}).get(product_id, {})
 
         self.price = QLabel(
-            f"Estimated Market Price: {detail.get('Unit Price', 'priceError')}"
+            f"Estimated Market Price: {np.round(self.orders.get("price","priceError"),4)}"
         )
 
         self.build_charts()

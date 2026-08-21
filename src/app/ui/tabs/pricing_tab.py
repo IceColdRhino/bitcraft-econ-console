@@ -30,7 +30,11 @@ class PricingTab(QWidget):
         self.main_layout = QVBoxLayout(self)
 
         self._create_top_panel()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Type to search...")
+        self.main_layout.addWidget(self.search_input)
         self._create_table()
+        self.search_input.textChanged.connect(self.proxy_model.setFilterFixedString)
 
     def _create_top_panel(self):
         self.top_panel = QWidget(self)
@@ -64,6 +68,10 @@ class PricingTab(QWidget):
 
         self.proxy_model = PriceFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
+        self.proxy_model.setFilterCaseSensitivity(
+            Qt.CaseSensitivity.CaseInsensitive
+        )
+        self.proxy_model.setFilterKeyColumn(-1)
 
         self.table = QTableView()
         self.table.setModel(self.proxy_model)
@@ -94,9 +102,12 @@ class PriceFilterProxyModel(QSortFilterProxyModel):
     def __init__(self):
         super().__init__()
 
-    def filterAcceptsRow(self, source_row, source_parent):
-        model = self.sourceModel()
-        return True
+    def setFilterFixedString(self, pattern):
+        return super().setFilterFixedString(pattern)
+
+    # def filterAcceptsRow(self, source_row, source_parent):
+    #     model = self.sourceModel()
+    #     return True
 
 
 class PriceTableModel(QAbstractTableModel):
