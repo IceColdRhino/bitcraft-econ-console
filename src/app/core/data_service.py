@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import numpy as np
+import os
 import typing
 import websockets
 import websockets.typing
@@ -182,11 +183,12 @@ class DataService:
         }
 
         try:
+            temp_file_path = get_user_data_path("temp_global_market.json")
             file_path = get_user_data_path("market.json")
-
             # Write prices to file
-            with open(file_path, "w") as f:
+            with open(temp_file_path, "w") as f:
                 json.dump(self.app.market, f, indent=4)
+            os.replace(temp_file_path, file_path)
         except Exception as e:
             logging.error(f"Error saving to market.json: {e}")
 
@@ -261,11 +263,13 @@ class DataService:
         }
 
         try:
+            temp_file_path = get_user_data_path("temp_claim_market.json")
             file_path = get_user_data_path("market.json")
 
             # Write prices to file
-            with open(file_path, "w") as f:
+            with open(temp_file_path, "w") as f:
                 json.dump(self.app.market, f, indent=4)
+            os.replace(temp_file_path, file_path)
         except Exception as e:
             logging.error(f"Error saving to market.json: {e}")
 
@@ -276,7 +280,7 @@ class DataService:
 
         if len(self.claim_product_queue) == 0:
             logging.info("Finished claim price refresh")
-            self.global_refresh_timer.stop()
+            self.claim_refresh_timer.stop()
 
 
 class WebSocketSignals(QObject):
